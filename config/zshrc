@@ -18,6 +18,12 @@ plugins=(
 
 source "$ZSH/oh-my-zsh.sh"
 
+# Shell niceties installed by Homebrew.
+[[ -r "$(brew --prefix 2>/dev/null)/share/zsh-autosuggestions/zsh-autosuggestions.zsh" ]] && \
+  source "$(brew --prefix)/share/zsh-autosuggestions/zsh-autosuggestions.zsh"
+[[ -r "$(brew --prefix 2>/dev/null)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]] && \
+  source "$(brew --prefix)/share/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+
 # Homebrew Python / pyenv
 export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null 2>&1 && export PATH="$PYENV_ROOT/bin:$PATH"
