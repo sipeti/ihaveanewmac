@@ -1,3 +1,5 @@
+tap "hashicorp/tap"
+
 brew "python"
 brew "pyenv"
 brew "uv"
@@ -8,8 +10,8 @@ brew "mtr"
 brew "kubectl"
 brew "helm"
 brew "k9s"
-brew "terraform"
+brew "hashicorp/tap/terraform"
 brew "ansible"
+brew "wireguard-tools"
 
-cask "docker"
-cask "wireguard"
+cask "docker-desktop"
