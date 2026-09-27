@@ -7,6 +7,7 @@ RAW_BASE="https://raw.githubusercontent.com/$REPO/$BRANCH"
 YES=0
 PROFILE=""
 HOSTNAME_ARG=""
+DRY_RUN=0
 
 usage() {
   cat <<'EOF'
@@ -17,11 +18,13 @@ Usage:
   ./bootstrap.sh --profile minimal|dev|studio|full
   ./bootstrap.sh --hostname my-mac
   ./bootstrap.sh --profile dev --hostname sipeti-mbp --yes
+  ./bootstrap.sh --profile dev --dry-run
 
 Options:
   --profile NAME     minimal, dev, studio or full
   --hostname NAME    set ComputerName/LocalHostName/HostName
   --yes, -y          accept default answers
+  --dry-run           show the resolved plan without changing the Mac
   --help, -h         show help
 
 Do not run this script with sudo.
@@ -40,6 +43,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --yes|-y)
       YES=1
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=1
       shift
       ;;
     --help|-h)
@@ -142,6 +149,29 @@ case "$PROFILE" in
     exit 1
     ;;
 esac
+
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  bold "ihaveanewmac dry run"
+  echo "Profile: $PROFILE"
+  echo
+  echo "Would configure:"
+  echo "  - Mac hostname / ComputerName"
+  echo "  - Apple Command Line Tools"
+  echo "  - Homebrew"
+  echo "  - Brewfile.minimal"
+  [[ "$PROFILE" == "dev" || "$PROFILE" == "full" ]] && echo "  - Brewfile.dev"
+  [[ "$PROFILE" == "studio" || "$PROFILE" == "full" ]] && echo "  - Brewfile.studio"
+  echo "  - Git identity and defaults"
+  echo "  - GitHub SSH key / gh authentication (interactive)"
+  echo "  - Oh My Zsh + agnoster"
+  echo "  - managed aliases"
+  echo "  - optional macOS defaults and preference prompts"
+  [[ "$PROFILE" == "dev" || "$PROFILE" == "full" ]] && echo "  - SDKMAN + Temurin Java 17/21 + Codex"
+  [[ "$PROFILE" != "minimal" ]] && echo "  - Docker Desktop sanity check"
+  echo
+  echo "No changes were made."
+  exit 0
+fi
 
 bold "ihaveanewmac"
 echo "Profile: $PROFILE"
@@ -373,6 +403,11 @@ else
   fi
 fi
 
+ALIASES_DIR="$HOME/.config/ihaveanewmac"
+mkdir -p "$ALIASES_DIR"
+fetch_repo_file "config/aliases.zsh" "$ALIASES_DIR/aliases.zsh"
+ok "Installed shared aliases"
+
 # Optional legacy Powerline font collection.
 if ask_yes_no "Also install the legacy powerline/fonts collection?" n; then
   POWERLINE_DIR="$TMP_DIR/powerline-fonts"
@@ -432,6 +467,33 @@ if ask_yes_no "Apply opinionated macOS defaults (Finder, Dock, keyboard, screens
   DEFAULTS_SCRIPT="$TMP_DIR/macos-defaults.sh"
   fetch_repo_file "scripts/macos-defaults.sh" "$DEFAULTS_SCRIPT"
   bash "$DEFAULTS_SCRIPT" || warn "Some macOS defaults could not be applied"
+fi
+
+if ask_yes_no "Configure extra macOS security/power/trackpad preferences?" y; then
+  PREFS_SCRIPT="$TMP_DIR/macos-preferences.sh"
+  fetch_repo_file "scripts/macos-preferences.sh" "$PREFS_SCRIPT"
+
+  SHOW_HIDDEN_FILES=0
+  SHOW_USER_LIBRARY=0
+  TAP_TO_CLICK=0
+  DISABLE_NATURAL_SCROLLING=0
+  REQUIRE_PASSWORD_IMMEDIATELY=0
+  PREVENT_SLEEP_ON_AC=0
+
+  ask_yes_no "Show hidden files in Finder?" n && SHOW_HIDDEN_FILES=1
+  ask_yes_no "Show ~/Library in Finder?" y && SHOW_USER_LIBRARY=1
+  ask_yes_no "Enable tap-to-click?" y && TAP_TO_CLICK=1
+  ask_yes_no "Disable natural scrolling?" n && DISABLE_NATURAL_SCROLLING=1
+  ask_yes_no "Require password immediately after sleep/screensaver?" y && REQUIRE_PASSWORD_IMMEDIATELY=1
+  ask_yes_no "Prevent system sleep while connected to AC power?" n && PREVENT_SLEEP_ON_AC=1
+
+  SHOW_HIDDEN_FILES="$SHOW_HIDDEN_FILES" \
+  SHOW_USER_LIBRARY="$SHOW_USER_LIBRARY" \
+  TAP_TO_CLICK="$TAP_TO_CLICK" \
+  DISABLE_NATURAL_SCROLLING="$DISABLE_NATURAL_SCROLLING" \
+  REQUIRE_PASSWORD_IMMEDIATELY="$REQUIRE_PASSWORD_IMMEDIATELY" \
+  PREVENT_SLEEP_ON_AC="$PREVENT_SLEEP_ON_AC" \
+    bash "$PREFS_SCRIPT" || warn "Some optional macOS preferences could not be applied"
 fi
 
 # ---------------------------------------------------------------------------
