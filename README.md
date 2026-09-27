@@ -2,17 +2,15 @@
 
 Opinionated, rerunnable macOS bootstrap for a fresh Mac.
 
-The goal is to turn a newly installed Mac into a useful development / admin workstation with as little manual setup as possible, while still asking before installing optional groups.
-
 ## Quick start
 
-> The repository is currently private. The one-line installer below will work without authentication after the repository is made public.
+> The repository is currently private. The one-line installer will work without authentication after the repository is public.
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/sipeti/ihaveanewmac/main/bootstrap.sh)
 ```
 
-Or clone it and run locally:
+Or:
 
 ```bash
 git clone https://github.com/sipeti/ihaveanewmac.git
@@ -20,103 +18,115 @@ cd ihaveanewmac
 ./bootstrap.sh
 ```
 
-## What it can install
+## Profiles
 
-- Mac hostname / ComputerName setup
-- Apple Command Line Tools (`xcode-select`)
-- Homebrew, with PATH setup for Apple Silicon and Intel
-- CLI/dev tools: Git, GitHub CLI, jq, wget, tree, htop, Python, pipx, Node.js
-- media tools: ffmpeg, yt-dlp
-- networking/admin tools: nmap, iperf3, mtr
-- GUI apps: Docker Desktop, Google Chrome, Visual Studio Code, iTerm2, The Unarchiver, WireGuard
-- Oh My Zsh
-- Meslo Nerd Font (Powerline-compatible glyphs)
-- optional legacy `powerline/fonts`
+`minimal`
+
+- Apple Command Line Tools
+- Homebrew
+- Git + GitHub CLI
+- jq, wget, tree, htop
+- Node.js, pipx
+- ripgrep, fd, bat, fzf, tmux, rsync, watch, shellcheck
+- ssh-copy-id
+- Google Chrome
+- iTerm2
+- The Unarchiver
+- Meslo Nerd Font
+- zsh-autosuggestions
+- zsh-syntax-highlighting
+- Oh My Zsh with the `agnoster` theme
+
+`dev`
+
+Everything in `minimal`, plus:
+
+- Python
+- pyenv
+- uv
+- kcat
+- Docker Desktop
+- WireGuard
+- nmap, iperf3, mtr
+- kubectl, helm, k9s
+- Terraform
+- Ansible
+- SDKMAN
+- Temurin Java 17 + 21
 - OpenAI Codex CLI
-- Git identity setup and sensible global defaults
-- power CLI tools: ripgrep, fd, bat, fzf, tmux, modern rsync, watch, shellcheck
-- GitHub SSH setup with Ed25519 keys
-- optional legacy RSA 4096 SSH key
-- optional GitHub CLI authentication and SSH public-key upload
 
-The script is intended to be **idempotent-ish**: already installed components are detected and skipped where practical. Homebrew package installs are safe to rerun.
+`studio`
 
-## Modes
+Everything in `minimal`, plus:
 
-Interactive mode is the default.
+- ffmpeg
+- yt-dlp
+- VLC
+- OBS
+- Docker Desktop
+- nmap, iperf3, mtr
+
+`full`
+
+Union of `dev` and `studio`.
+
+## Usage
+
+Interactive:
 
 ```bash
 ./bootstrap.sh
 ```
 
-Install the normal defaults without package-group questions:
+Choose a profile directly:
 
 ```bash
-./bootstrap.sh --yes
+./bootstrap.sh --profile dev
+./bootstrap.sh --profile studio
+./bootstrap.sh --profile full
 ```
 
-Show options:
+Set the machine name too:
 
 ```bash
-./bootstrap.sh --help
+./bootstrap.sh --profile dev --hostname sipeti-mbp
 ```
 
-## Design rules
-
-- Do not run the whole script with `sudo`.
-- Ask for elevated privileges only when an underlying installer needs them.
-- Do not overwrite an existing `~/.zshrc`.
-- Add Homebrew to `~/.zprofile` using a small managed block.
-- Optional app failures should be reported without making the entire bootstrap useless.
-- No credentials, API keys, SSH keys or machine-specific secrets belong in this repository.
-
-## Notes
-
-The original Powerline fonts repository is still available, but the default setup uses Meslo Nerd Font via Homebrew. It provides the glyph coverage normally wanted for modern Zsh prompts without cloning and installing the entire legacy font collection.
-
-Codex CLI is installed with:
+Accept default answers:
 
 ```bash
-npm install -g @openai/codex
+./bootstrap.sh --profile dev --hostname sipeti-mbp --yes
 ```
 
-Authentication remains interactive and is intentionally not automated.
+## Brewfile layout
 
+Packages are intentionally kept outside the main installer:
 
-## Hostname and SSH
+```text
+Brewfile.minimal
+Brewfile.dev
+Brewfile.studio
+```
 
-At startup the installer asks for the Mac's name and configures:
+The `full` profile installs both the dev and studio Brewfiles after the minimal one.
+
+This keeps package maintenance separate from provisioning logic.
+
+## macOS identity
+
+The installer can configure:
 
 - `ComputerName`
 - `LocalHostName`
 - `HostName`
 
-For GitHub SSH access, Ed25519 is the default and recommended key type:
+The DNS-style hostname is generated from the friendly Mac name.
+
+## Git and GitHub
+
+The installer can configure global Git identity and these defaults:
 
 ```text
-~/.ssh/id_ed25519
-~/.ssh/id_ed25519.pub
-```
-
-A 4096-bit RSA key can also be generated when legacy compatibility is required:
-
-```text
-~/.ssh/id_rsa
-~/.ssh/id_rsa.pub
-```
-
-Existing private keys are never overwritten.
-
-The installer also adds a managed `github.com` block to `~/.ssh/config`, loads the Ed25519 key into the macOS keychain/ssh-agent, and can launch `gh auth login` and upload the public key to GitHub.
-
-
-## Git setup
-
-The installer can configure global Git identity and applies a small set of workstation-friendly defaults:
-
-```text
-user.name
-user.email
 init.defaultBranch = main
 fetch.prune = true
 push.autoSetupRemote = true
@@ -125,6 +135,105 @@ pull.rebase = false
 rerere.enabled = true
 ```
 
-It also creates `~/.gitignore_global` and ignores `.DS_Store` globally.
+It also creates `~/.gitignore_global` and ignores `.DS_Store`.
 
-When GitHub authentication is enabled, the installer configures GitHub CLI to use SSH, runs `gh auth setup-git`, uploads the Ed25519 public key when needed, and performs an SSH authentication test against GitHub.
+GitHub SSH setup uses Ed25519 by default:
+
+```text
+~/.ssh/id_ed25519
+~/.ssh/id_ed25519.pub
+```
+
+An RSA 4096 key is optional for legacy use.
+
+Existing private keys are never overwritten.
+
+The script can:
+
+- add a managed GitHub block to `~/.ssh/config`
+- add the Ed25519 key to the macOS keychain/ssh-agent
+- run `gh auth login`
+- configure GitHub CLI for SSH
+- upload the public key
+- test `ssh -T git@github.com`
+
+## Shell
+
+The default shell configuration is stored in:
+
+```text
+config/zshrc
+```
+
+It uses:
+
+```text
+ZSH_THEME="agnoster"
+```
+
+and enables:
+
+- git
+- macos
+- docker
+- docker-compose
+- zsh-autosuggestions
+- zsh-syntax-highlighting
+
+If `~/.zshrc` already exists, it is preserved. The installer can optionally back it up and replace it with the managed starting point.
+
+SDKMAN initialization stays near the end of the managed shell configuration.
+
+The old `powerline/fonts` repository remains available as an optional legacy installation; Meslo Nerd Font is the default.
+
+## Java
+
+For `dev` and `full`, Java is managed through SDKMAN rather than Homebrew.
+
+The installer attempts to install current Temurin builds for:
+
+- Java 17
+- Java 21
+
+and sets Java 21 as the default when available.
+
+## macOS defaults
+
+The optional defaults script currently configures:
+
+- Finder file extensions
+- Finder path bar
+- Finder status bar
+- list view
+- no extension-change warning
+- no `.DS_Store` on network volumes
+- no `.DS_Store` on USB volumes
+- faster keyboard repeat
+- Dock auto-hide
+- no recent apps in Dock
+- PNG screenshots
+- screenshots under `~/Pictures/Screenshots`
+
+The settings live in:
+
+```text
+scripts/macos-defaults.sh
+```
+
+## Docker check
+
+For non-minimal profiles, if Docker Desktop is installed, the bootstrap can:
+
+1. start Docker Desktop
+2. wait for the engine
+3. run `docker run --rm hello-world`
+
+## Design rules
+
+- never run the entire bootstrap with `sudo`
+- only request elevation when macOS itself requires it
+- do not overwrite SSH private keys
+- preserve an existing `~/.zshrc` unless the user explicitly chooses replacement
+- keep package lists in Brewfiles
+- keep credentials, tokens and machine-specific secrets out of the repository
+- make reruns safe where practical
