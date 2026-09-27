@@ -1,0 +1,9 @@
+brew "ffmpeg"
+brew "yt-dlp"
+brew "nmap"
+brew "iperf3"
+brew "mtr"
+
+cask "docker"
+cask "vlc"
+cask "obs"
