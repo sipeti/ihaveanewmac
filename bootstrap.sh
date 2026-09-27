@@ -103,6 +103,39 @@ echo "Bootstrap for a fresh macOS workstation"
 echo
 
 # ---------------------------------------------------------------------------
+# Mac identity / hostname
+# ---------------------------------------------------------------------------
+CURRENT_COMPUTER_NAME="$(scutil --get ComputerName 2>/dev/null || hostname)"
+if [[ "$YES" -eq 1 ]]; then
+  MACHINE_NAME="$CURRENT_COMPUTER_NAME"
+else
+  read -r -p "Mac name [$CURRENT_COMPUTER_NAME]: " MACHINE_NAME
+  MACHINE_NAME="${MACHINE_NAME:-$CURRENT_COMPUTER_NAME}"
+fi
+
+# LocalHostName and HostName should be DNS-friendly.
+MACHINE_HOSTNAME="$(printf '%s' "$MACHINE_NAME" \
+  | tr '[:upper:]' '[:lower:]' \
+  | sed -E 's/[^a-z0-9-]+/-/g; s/^-+//; s/-+$//; s/-+/-/g')"
+
+if [[ -z "$MACHINE_HOSTNAME" ]]; then
+  MACHINE_HOSTNAME="mac"
+fi
+
+if [[ "$MACHINE_NAME" != "$CURRENT_COMPUTER_NAME" ]] || \
+   [[ "$(scutil --get LocalHostName 2>/dev/null || true)" != "$MACHINE_HOSTNAME" ]] || \
+   [[ "$(scutil --get HostName 2>/dev/null || true)" != "$MACHINE_HOSTNAME" ]]; then
+  info "Setting Mac name to '$MACHINE_NAME' ($MACHINE_HOSTNAME)"
+  sudo scutil --set ComputerName "$MACHINE_NAME"
+  sudo scutil --set LocalHostName "$MACHINE_HOSTNAME"
+  sudo scutil --set HostName "$MACHINE_HOSTNAME"
+  ok "Mac hostname configured"
+else
+  ok "Mac hostname already configured"
+fi
+
+
+# ---------------------------------------------------------------------------
 # Apple Command Line Tools
 # ---------------------------------------------------------------------------
 if xcode-select -p >/dev/null 2>&1; then
@@ -181,6 +214,80 @@ done
 # pipx path
 if command_exists pipx; then
   pipx ensurepath >/dev/null 2>&1 || true
+fi
+
+# ---------------------------------------------------------------------------
+# SSH / GitHub identity
+# ---------------------------------------------------------------------------
+bold "SSH / GitHub"
+
+mkdir -p "$HOME/.ssh"
+chmod 700 "$HOME/.ssh"
+
+GIT_EMAIL="$(git config --global user.email 2>/dev/null || true)"
+if [[ -z "$GIT_EMAIL" && "$YES" -eq 0 ]]; then
+  read -r -p "Git/GitHub email for SSH key comment (optional): " GIT_EMAIL
+fi
+SSH_COMMENT="${GIT_EMAIL:-$USER@$MACHINE_HOSTNAME}"
+
+if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+  ok "~/.ssh/id_ed25519 already exists"
+else
+  if ask_yes_no "Create a GitHub SSH Ed25519 key (~/.ssh/id_ed25519)?" y; then
+    info "Creating Ed25519 SSH key"
+    ssh-keygen -t ed25519 -C "$SSH_COMMENT" -f "$HOME/.ssh/id_ed25519"
+    ok "Ed25519 SSH key created"
+  fi
+fi
+
+if ask_yes_no "Also create a legacy RSA 4096 key (~/.ssh/id_rsa)?" n; then
+  if [[ -f "$HOME/.ssh/id_rsa" ]]; then
+    ok "~/.ssh/id_rsa already exists"
+  else
+    info "Creating RSA 4096 SSH key"
+    ssh-keygen -t rsa -b 4096 -C "$SSH_COMMENT" -f "$HOME/.ssh/id_rsa"
+    ok "RSA SSH key created"
+  fi
+fi
+
+SSH_CONFIG="$HOME/.ssh/config"
+touch "$SSH_CONFIG"
+chmod 600 "$SSH_CONFIG"
+
+if [[ -f "$HOME/.ssh/id_ed25519" ]] && ! grep -Fq "# >>> ihaveanewmac github >>>" "$SSH_CONFIG"; then
+  cat >> "$SSH_CONFIG" <<'EOF'
+
+# >>> ihaveanewmac github >>>
+Host github.com
+  HostName github.com
+  User git
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
+# <<< ihaveanewmac github <<<
+EOF
+  ok "GitHub SSH config added"
+fi
+
+if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
+  ssh-add --apple-use-keychain "$HOME/.ssh/id_ed25519" >/dev/null 2>&1 || \
+    ssh-add -K "$HOME/.ssh/id_ed25519" >/dev/null 2>&1 || true
+
+  if ask_yes_no "Authenticate GitHub CLI and upload the Ed25519 public key now?" y; then
+    if ! gh auth status >/dev/null 2>&1; then
+      gh auth login --hostname github.com --git-protocol ssh --web || \
+        warn "GitHub authentication was not completed"
+    fi
+
+    if gh auth status >/dev/null 2>&1; then
+      KEY_TITLE="$MACHINE_HOSTNAME-$(date +%Y-%m-%d)"
+      if gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$KEY_TITLE"; then
+        ok "SSH public key uploaded to GitHub as '$KEY_TITLE'"
+      else
+        warn "Could not upload SSH key (it may already be registered)"
+      fi
+    fi
+  fi
 fi
 
 # ---------------------------------------------------------------------------
