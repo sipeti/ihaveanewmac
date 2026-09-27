@@ -373,6 +373,16 @@ else
   fi
 fi
 
+# Optional legacy Powerline font collection.
+if ask_yes_no "Also install the legacy powerline/fonts collection?" n; then
+  POWERLINE_DIR="$TMP_DIR/powerline-fonts"
+  if git clone --depth=1 https://github.com/powerline/fonts.git "$POWERLINE_DIR"; then
+    (cd "$POWERLINE_DIR" && ./install.sh) || warn "Legacy Powerline font installer failed"
+  else
+    warn "Could not clone powerline/fonts"
+  fi
+fi
+
 # ---------------------------------------------------------------------------
 # SDKMAN / Java for dev/full
 # ---------------------------------------------------------------------------
