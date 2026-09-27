@@ -4,6 +4,6 @@ brew "nmap"
 brew "iperf3"
 brew "mtr"
 
-cask "docker"
+cask "docker-desktop"
 cask "vlc"
 cask "obs"
