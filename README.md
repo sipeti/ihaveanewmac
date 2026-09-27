@@ -33,6 +33,8 @@ cd ihaveanewmac
 - Meslo Nerd Font (Powerline-compatible glyphs)
 - optional legacy `powerline/fonts`
 - OpenAI Codex CLI
+- Git identity setup and sensible global defaults
+- power CLI tools: ripgrep, fd, bat, fzf, tmux, modern rsync, watch, shellcheck
 - GitHub SSH setup with Ed25519 keys
 - optional legacy RSA 4096 SSH key
 - optional GitHub CLI authentication and SSH public-key upload
@@ -106,3 +108,23 @@ A 4096-bit RSA key can also be generated when legacy compatibility is required:
 Existing private keys are never overwritten.
 
 The installer also adds a managed `github.com` block to `~/.ssh/config`, loads the Ed25519 key into the macOS keychain/ssh-agent, and can launch `gh auth login` and upload the public key to GitHub.
+
+
+## Git setup
+
+The installer can configure global Git identity and applies a small set of workstation-friendly defaults:
+
+```text
+user.name
+user.email
+init.defaultBranch = main
+fetch.prune = true
+push.autoSetupRemote = true
+core.autocrlf = input
+pull.rebase = false
+rerere.enabled = true
+```
+
+It also creates `~/.gitignore_global` and ignores `.DS_Store` globally.
+
+When GitHub authentication is enabled, the installer configures GitHub CLI to use SSH, runs `gh auth setup-git`, uploads the Ed25519 public key when needed, and performs an SSH authentication test against GitHub.
