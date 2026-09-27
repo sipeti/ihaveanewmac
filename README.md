@@ -98,6 +98,12 @@ Accept default answers:
 ./bootstrap.sh --profile dev --hostname sipeti-mbp --yes
 ```
 
+Preview the resolved plan without changing the Mac:
+
+```bash
+./bootstrap.sh --profile dev --hostname sipeti-mbp --dry-run
+```
+
 ## Brewfile layout
 
 Packages are intentionally kept outside the main installer:
@@ -182,6 +188,20 @@ and enables:
 
 If `~/.zshrc` already exists, it is preserved. The installer can optionally back it up and replace it with the managed starting point.
 
+Shared aliases live in:
+
+```text
+config/aliases.zsh
+```
+
+and are installed to:
+
+```text
+~/.config/ihaveanewmac/aliases.zsh
+```
+
+The current aliases cover common Git, Docker, kubectl and kcat workflows without bloating `~/.zshrc`.
+
 SDKMAN initialization stays near the end of the managed shell configuration.
 
 The old `powerline/fonts` repository remains available as an optional legacy installation; Meslo Nerd Font is the default.
@@ -220,6 +240,21 @@ The settings live in:
 scripts/macos-defaults.sh
 ```
 
+A second optional preference pass asks individually about:
+
+- showing hidden files
+- showing `~/Library`
+- tap-to-click
+- disabling natural scrolling
+- requiring a password immediately after sleep/screensaver
+- preventing system sleep while on AC power
+
+Those settings are implemented in:
+
+```text
+scripts/macos-preferences.sh
+```
+
 ## Docker check
 
 For non-minimal profiles, if Docker Desktop is installed, the bootstrap can:
@@ -237,3 +272,4 @@ For non-minimal profiles, if Docker Desktop is installed, the bootstrap can:
 - keep package lists in Brewfiles
 - keep credentials, tokens and machine-specific secrets out of the repository
 - make reruns safe where practical
+- keep `--dry-run` non-destructive
