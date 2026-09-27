@@ -22,6 +22,7 @@ cd ihaveanewmac
 
 ## What it can install
 
+- Mac hostname / ComputerName setup
 - Apple Command Line Tools (`xcode-select`)
 - Homebrew, with PATH setup for Apple Silicon and Intel
 - CLI/dev tools: Git, GitHub CLI, jq, wget, tree, htop, Python, pipx, Node.js
@@ -32,6 +33,9 @@ cd ihaveanewmac
 - Meslo Nerd Font (Powerline-compatible glyphs)
 - optional legacy `powerline/fonts`
 - OpenAI Codex CLI
+- GitHub SSH setup with Ed25519 keys
+- optional legacy RSA 4096 SSH key
+- optional GitHub CLI authentication and SSH public-key upload
 
 The script is intended to be **idempotent-ish**: already installed components are detected and skipped where practical. Homebrew package installs are safe to rerun.
 
@@ -75,3 +79,30 @@ npm install -g @openai/codex
 ```
 
 Authentication remains interactive and is intentionally not automated.
+
+
+## Hostname and SSH
+
+At startup the installer asks for the Mac's name and configures:
+
+- `ComputerName`
+- `LocalHostName`
+- `HostName`
+
+For GitHub SSH access, Ed25519 is the default and recommended key type:
+
+```text
+~/.ssh/id_ed25519
+~/.ssh/id_ed25519.pub
+```
+
+A 4096-bit RSA key can also be generated when legacy compatibility is required:
+
+```text
+~/.ssh/id_rsa
+~/.ssh/id_rsa.pub
+```
+
+Existing private keys are never overwritten.
+
+The installer also adds a managed `github.com` block to `~/.ssh/config`, loads the Ed25519 key into the macOS keychain/ssh-agent, and can launch `gh auth login` and upload the public key to GitHub.
