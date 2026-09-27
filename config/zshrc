@@ -34,6 +34,9 @@ if command -v pyenv >/dev/null 2>&1; then
   alias brew='env PATH="${PATH//$(pyenv root)\/shims:/}" brew'
 fi
 
+# Shared aliases managed by ihaveanewmac.
+[[ -r "$HOME/.config/ihaveanewmac/aliases.zsh" ]] && source "$HOME/.config/ihaveanewmac/aliases.zsh"
+
 # SDKMAN - keep at the end of managed shell initialization.
 export SDKMAN_DIR="$HOME/.sdkman"
 [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && source "$HOME/.sdkman/bin/sdkman-init.sh"
