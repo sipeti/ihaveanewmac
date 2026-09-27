@@ -4,10 +4,12 @@ on:
   push:
     paths:
       - "bootstrap.sh"
+      - "scripts/**/*.sh"
       - ".github/workflows/shellcheck.yml"
   pull_request:
     paths:
       - "bootstrap.sh"
+      - "scripts/**/*.sh"
       - ".github/workflows/shellcheck.yml"
 
 jobs:
@@ -18,4 +20,4 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run shellcheck
-        run: shellcheck bootstrap.sh
+        run: shellcheck bootstrap.sh scripts/*.sh
