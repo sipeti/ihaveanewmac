@@ -246,6 +246,27 @@ if ask_yes_no "Install media tools (ffmpeg, yt-dlp)?" y; then
 fi
 
 # ---------------------------------------------------------------------------
+# DevOps / infrastructure tooling
+# ---------------------------------------------------------------------------
+if ask_yes_no "Install DevOps/Kafka workstation tools (kubectl, helm, k9s, terraform, ansible, JDK 17)?" y; then
+  DEVOPS_FORMULAE=(
+    kubectl
+    helm
+    k9s
+    terraform
+    ansible
+    openjdk@17
+  )
+  for pkg in "${DEVOPS_FORMULAE[@]}"; do
+    brew_formula "$pkg"
+  done
+
+  if [[ -d "$(brew --prefix openjdk@17 2>/dev/null)/libexec/openjdk.jdk" ]]; then
+    warn "JDK 17 is installed. Some GUI apps may require linking it into /Library/Java/JavaVirtualMachines manually."
+  fi
+fi
+
+# ---------------------------------------------------------------------------
 # GUI applications
 # ---------------------------------------------------------------------------
 if ask_yes_no "Install common GUI apps?" y; then
