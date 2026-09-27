@@ -217,6 +217,53 @@ if command_exists pipx; then
 fi
 
 # ---------------------------------------------------------------------------
+# Git identity
+# ---------------------------------------------------------------------------
+bold "Git identity"
+
+CURRENT_GIT_NAME="$(git config --global user.name 2>/dev/null || true)"
+CURRENT_GIT_EMAIL="$(git config --global user.email 2>/dev/null || true)"
+
+if [[ "$YES" -eq 0 ]]; then
+  read -r -p "Git full name${CURRENT_GIT_NAME:+ [$CURRENT_GIT_NAME]}: " GIT_NAME
+  GIT_NAME="${GIT_NAME:-$CURRENT_GIT_NAME}"
+
+  read -r -p "Git email${CURRENT_GIT_EMAIL:+ [$CURRENT_GIT_EMAIL]}: " GIT_EMAIL
+  GIT_EMAIL="${GIT_EMAIL:-$CURRENT_GIT_EMAIL}"
+else
+  GIT_NAME="$CURRENT_GIT_NAME"
+  GIT_EMAIL="$CURRENT_GIT_EMAIL"
+fi
+
+if [[ -n "$GIT_NAME" ]]; then
+  git config --global user.name "$GIT_NAME"
+  ok "Git user.name = $GIT_NAME"
+else
+  warn "Git user.name is not configured"
+fi
+
+if [[ -n "$GIT_EMAIL" ]]; then
+  git config --global user.email "$GIT_EMAIL"
+  ok "Git user.email = $GIT_EMAIL"
+else
+  warn "Git user.email is not configured"
+fi
+
+# Safe, generally useful defaults for new machines.
+git config --global init.defaultBranch main
+git config --global fetch.prune true
+git config --global push.autoSetupRemote true
+git config --global core.autocrlf input
+git config --global pull.rebase false
+git config --global rerere.enabled true
+
+GLOBAL_GITIGNORE="$HOME/.gitignore_global"
+touch "$GLOBAL_GITIGNORE"
+append_line_once ".DS_Store" "$GLOBAL_GITIGNORE"
+git config --global core.excludesfile "$GLOBAL_GITIGNORE"
+ok "Git defaults configured"
+
+# ---------------------------------------------------------------------------
 # SSH / GitHub identity
 # ---------------------------------------------------------------------------
 bold "SSH / GitHub"
@@ -224,10 +271,6 @@ bold "SSH / GitHub"
 mkdir -p "$HOME/.ssh"
 chmod 700 "$HOME/.ssh"
 
-GIT_EMAIL="$(git config --global user.email 2>/dev/null || true)"
-if [[ -z "$GIT_EMAIL" && "$YES" -eq 0 ]]; then
-  read -r -p "Git/GitHub email for SSH key comment (optional): " GIT_EMAIL
-fi
 SSH_COMMENT="${GIT_EMAIL:-$USER@$MACHINE_HOSTNAME}"
 
 if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
@@ -280,11 +323,28 @@ if [[ -f "$HOME/.ssh/id_ed25519" ]]; then
     fi
 
     if gh auth status >/dev/null 2>&1; then
+      gh config set git_protocol ssh --host github.com >/dev/null 2>&1 || true
+      gh auth setup-git >/dev/null 2>&1 || true
+
       KEY_TITLE="$MACHINE_HOSTNAME-$(date +%Y-%m-%d)"
-      if gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$KEY_TITLE"; then
+      EXISTING_KEYS="$(gh ssh-key list 2>/dev/null || true)"
+      PUBLIC_KEY="$(cat "$HOME/.ssh/id_ed25519.pub")"
+
+      if printf '%s\n' "$EXISTING_KEYS" | grep -Fq "$PUBLIC_KEY"; then
+        ok "Ed25519 public key is already registered on GitHub"
+      elif gh ssh-key add "$HOME/.ssh/id_ed25519.pub" --title "$KEY_TITLE"; then
         ok "SSH public key uploaded to GitHub as '$KEY_TITLE'"
       else
-        warn "Could not upload SSH key (it may already be registered)"
+        warn "Could not upload SSH key"
+      fi
+
+      info "Testing SSH authentication to GitHub"
+      SSH_TEST_OUTPUT="$(ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -T git@github.com 2>&1 || true)"
+      if printf '%s' "$SSH_TEST_OUTPUT" | grep -qi "successfully authenticated"; then
+        ok "GitHub SSH authentication works"
+      else
+        warn "GitHub SSH authentication test did not confirm success"
+        printf '    %s\n' "$SSH_TEST_OUTPUT" >&2
       fi
     fi
   fi
@@ -348,6 +408,25 @@ fi
 
 if ask_yes_no "Install media tools (ffmpeg, yt-dlp)?" y; then
   for pkg in ffmpeg yt-dlp; do
+    brew_formula "$pkg"
+  done
+fi
+
+# ---------------------------------------------------------------------------
+# Power CLI tools
+# ---------------------------------------------------------------------------
+if ask_yes_no "Install power CLI tools (ripgrep, fd, bat, fzf, tmux, rsync, watch, shellcheck)?" y; then
+  POWER_CLI_FORMULAE=(
+    ripgrep
+    fd
+    bat
+    fzf
+    tmux
+    rsync
+    watch
+    shellcheck
+  )
+  for pkg in "${POWER_CLI_FORMULAE[@]}"; do
     brew_formula "$pkg"
   done
 fi
@@ -430,7 +509,7 @@ echo "Recommended next steps:"
 echo "  1. Open a new Terminal window (or run: exec zsh -l)"
 echo "  2. Set MesloLGS Nerd Font in your terminal profile"
 echo "  3. Start Docker Desktop once so macOS can finish its setup"
-echo "  4. Run: gh auth login"
+echo "  4. GitHub SSH authentication was tested during setup when GitHub login was enabled"
 echo "  5. Run: codex   (if installed) and authenticate interactively"
 echo
 echo "Rerunning this script is supported; already installed packages will be skipped."
